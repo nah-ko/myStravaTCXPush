@@ -23,21 +23,12 @@ StravaClient.access_token = settings.get('strava_token')
 StravaAthlete = StravaClient.get_athlete()
 print("Hello, {} {}.\nYou are now connected to Strava.".format(StravaAthlete.firstname,  StravaAthlete.lastname))
 
-#print ("Activites list...")
-#Activites = StravaClient.get_activities()
-#Activites.limit = 1
-#LastActivity = list(Activites)
-#print("Your last activity was {} the {}...".format(LastActivity.type, LastActivity.start_date.strftime("%d.%m.%Y")))
-
 # Now we'll try to find activity(ies) to upload.
-# recherche par os.walk ? cf: http://www.pythonforbeginners.com/systems-programming/os-walk-and-fnmatch-in-python/
-# solution choisi du type de celle decrite ici: http://stackoverflow.com/questions/19859840/excluding-directories-in-os-walk
-#tcxStorageDir = "/home/toffe/Documents/Dropbox/Perso/Sports/"
-tcxStorageDir = settings.get('archives_dir')
-#Debug = False
-Debug = True
-Year = datetime.now().strftime("%Y")
-Exclude = ('UploadedToStrava', 'Endomondo', 'runtastic2strava')
+tcxStorageDir = settings.get('archives_dir') # Where TCX files are stored
+Debug = False # If we need to have some more informations...
+#Debug = True
+Year = datetime.now().strftime("%Y") # This exists because TCX files are like : 2015-06-06T15-23-01.000Z_Walking.tcx
+Exclude = ('UploadedToStrava', 'Endomondo', 'runtastic2strava') # List directories we don't want do search into
 
 print("List files to upload...")
 
@@ -51,6 +42,7 @@ for root, dirs, files in os.walk(tcxStorageDir):
    # We don't want to deal with some directories
    dirs[:] = list(filter(lambda x: not x in Exclude, dirs))
    if Debug: print("dirs :\n{}".format(dirs))
+   # Find files matching
    for filenames in fnmatch.filter(files, Year+"*.tcx"):
       if Debug: print(os.path.join(root,filenames))
       File = os.path.join(root,filenames)
@@ -110,11 +102,12 @@ for root, dirs, files in os.walk(tcxStorageDir):
 
       # Now move file to "UploadedToStrava" dir...
       UP2S = "UploadedToStrava/"
+      UploadDir = root + UP2S
       try:
-         if not os.path.exists(UP2S):
-            os.mkdir(UP2S)
-         shutil.move(File, UP2S)
+         if not os.path.exists(UploadDir):
+            os.mkdir(UploadDir)
+         shutil.move(File, UploadDir)
       except (IOError, os.error), why:
-         print("Unable to move {} to {} because of error: {}".format(File, UP2S, str(why)))
+         print("Unable to move {} to {} because of error: {}".format(File, UploadDir, str(why)))
 
 print("End of the list.")
