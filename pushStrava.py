@@ -15,13 +15,17 @@ with open("settings.json", "r") as f:
     settings = json.load(f)
 
 # Then, connect to user Strava account.
-print("Connecting to Strava...")
-StravaClient = Client()
-StravaClient.access_token = settings.get('strava_token')
+try:
+   print("Connecting to Strava...")
+   StravaClient = Client()
+   StravaClient.access_token = settings.get('strava_token')
 
-# You're logged in !
-StravaAthlete = StravaClient.get_athlete()
-print("Hello, {} {}.\nYou are now connected to Strava.".format(StravaAthlete.firstname,  StravaAthlete.lastname))
+   # You're logged in !
+   StravaAthlete = StravaClient.get_athlete()
+   print("Hello, {} {}.\nYou are now connected to Strava.".format(StravaAthlete.firstname,  StravaAthlete.lastname))
+except HTTPError as err:
+   print("Connecting problem: {}".format(err))
+   exit(1)
 
 # Now we'll try to find activity(ies) to upload.
 tcxStorageDir = settings.get('archives_dir') # Where TCX files are stored
@@ -83,8 +87,15 @@ for root, dirs, files in os.walk(tcxStorageDir):
                      activity_type = tcxSportType
                      )
       except exc.ActivityUploadFailed as err:
-          print("Problem raised: {}".format(err))
-          exit(1) # deal with duplicate type of error, if duplicate then continue with next file ? else stop
+          print("Uploading problem raised: {}".format(err))
+	  errStr = str(err)
+	  # deal with duplicate type of error, if duplicate then continue with next file, else stop
+	  if errStr.find('duplicate of activity'):
+	     print("Remove dulicate activity file {}".format(File))
+	     os.remove(File)
+	     isDuplicate = True
+	  else:
+             exit(1)
 
       except ConnectionError as err:
           print("No Internet connection: {}".format(err))
@@ -97,17 +108,24 @@ for root, dirs, files in os.walk(tcxStorageDir):
       except HTTPError as err:
           print("Problem raised: {}\nExiting...".format(err))
           exit(1)
+      except:
+          print("Another problem occured, sorry...")
+	  exit(1)
 
       print("Activity viewable at: https://www.strava.com/activities/{}".format(str(upResult.id)))
 
       # Now move file to "UploadedToStrava" dir...
       UP2S = "UploadedToStrava/"
-      UploadDir = root + UP2S
+      UploadDir = root + "/" + UP2S
       try:
          if not os.path.exists(UploadDir):
             os.mkdir(UploadDir)
          shutil.move(File, UploadDir)
       except (IOError, os.error), why:
          print("Unable to move {} to {} because of error: {}".format(File, UploadDir, str(why)))
+	 err = str(why)
+	 if err.find('already exists') != -1:
+	     print("Removing existing file {}".format(File))
+	     os.remove(File)
 
 print("End of the list.")
